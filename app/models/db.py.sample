@@ -1,0 +1,32 @@
+'''
+Filename: instance.py
+Version: 1.0
+Author: joabe leão - joabe.leao1@gmail.com
+
+Description:
+    App creation, description and instance
+'''
+import random
+import string
+
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+RANDOM_STR = string.ascii_letters + string.digits + string.ascii_uppercase
+RANDOM_KEY = ''.join(random.choice(RANDOM_STR) for i in range(16))
+
+DEBUG = True
+
+#define sqlite connection uri
+SQLALCHEMY_DATABASE_URI = 'mysql://user:pass@host:port/database'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+SECRET_KEY = RANDOM_KEY
+
+# create new engine instance
+engine = create_engine(SQLALCHEMY_DATABASE_URI)
+
+# create sessionmaker
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
