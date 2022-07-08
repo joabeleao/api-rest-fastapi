@@ -1,56 +1,55 @@
 '''
 Authentication methods
 '''
-from functools import wraps
-
 import datetime
 import jwt
 
-from flask import jsonify
-from flask import request
 from werkzeug.security import check_password_hash
 
-from app import app
-from app.views.users import query_user
+from fastapi import Request
+from fastapi import HTTPException
+from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
 
-def token_required(wraped_func):
+from app.views.users import query_user
+from app.models.db import SECRET_KEY
+
+class JWTBearer(HTTPBearer):
     '''
-    token_required:
-       Decorator function used by endpoints to check if
-       a valid token was given in order to access the route.
-    Validations:
-        verify if token exists
-        verify its expiratin date
-        decode token with secret defined on config.py
+    Doc
     '''
-    @wraps(wraped_func)
-    def decorated(*args, **kwargs):
+    def __init__(self, auto_error: bool = True):
+        super(JWTBearer, self).__init__(auto_error=auto_error)
+
+    async def __call__(self, request: Request):
+        credentials: HTTPAuthorizationCredentials = await super(JWTBearer, self).__call__(request)
+        if credentials:
+            if not credentials.scheme == "Bearer":
+                raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
+            if  self.verify_token(credentials.credentials):
+                raise HTTPException(status_code=403, detail="Invalid token or expired token.")
+            return credentials.credentials
+        raise HTTPException(status_code=403, detail="Invalid authorization code.")
+
+    def verify_token(self, credentials):
         '''
         decorated:
             wraps functions receiving all arguments to
             transform token_decorated function in a proper decorator.
         '''
+        print(credentials)
         try:
-            # token filter - e.g: Authorization: Bearer tokenhash
-            token = request.headers.get('Authorization').split(' ')[1]
+            token = credentials
+            data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            print("here goes data :"+data)
         except Exception:
-            try:
-                # token filter - e.g: Authorization: tokenhash
-                token = request.headers.get('Authorization')
-            except Exception:
-                return jsonify({'message': 'token is invalid or missing', 'data': {} }), 401
+            return {'message': 'token is invalid or missing', 'data': {} }, 401
+    
+        print("here goes data :"+data)
+        return {"username": "not yet", "token": data}
+        #return {"username": current_user.username, "token": "ok"}
 
-        if not token:
-            return jsonify({'message': 'token is invalid or missing', 'data': {} }), 401
-        try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            current_user = query_user(username=data['username'])
-        except Exception:
-            return jsonify({'message': 'token is invalid or expired', 'data': {} }), 403
-        return wraped_func(current_user.username, *args, **kwargs)
-    return decorated
-
-def auth():
+def auth(username, password, db_session):
     '''
     auth:
         Get basic auth information and encode it in a token with jwt
@@ -59,28 +58,15 @@ def auth():
     Returns:
         A valid token
     '''
-    try:
-        auth_data = request.authorization
-    except Exception:
-        return jsonify({'message': 'Unauthorized',
-            'WWW-Authenticate': 'Basic auth=login and password required'
-        }), 401
+    user = query_user(username, db_session)
 
-    if not auth_data or not auth_data.username or not auth_data.password:
-        return jsonify({'message': 'Unauthorized',
-            'WWW-Authenticate': 'Basic auth=login and password required'
-        }), 401
-
-    user = query_user(auth_data.username)
-
-    if user and check_password_hash(user.password, auth_data.password):
+    if user and check_password_hash(user.password, password):
         token = jwt.encode({'username': user.username,
-            'exp': datetime.datetime.now() + datetime.timedelta(hours=12) },
-            app.config['SECRET_KEY']
+            'exp': datetime.datetime.now() + datetime.timedelta(hours=12) }, SECRET_KEY
         )
-        return jsonify({'message': 'Validated successfully',
+        return {'message': 'Validated successfully',
             'token': token,
             'exp': datetime.datetime.now() + datetime.timedelta(hours=12)
-        })
+        }
 
-    return jsonify({'message': 'Invalid username or password', 'data': {} }), 403
+    return {'message': 'Invalid username or password', 'data': {} }, 403
