@@ -1,7 +1,6 @@
 fastapi[all]
 SQLAlchemy
 marshmallow-sqlalchemy
-waitress
 setuptools
 requests
 cachetools

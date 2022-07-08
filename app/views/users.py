@@ -20,9 +20,9 @@ def post_user(db_session:Session, username, password, name, email):
 
     # fazer query pro alchemy
     if query_user(username):
-        return json.dumps({'message': 'Username already exists'}), 400
+        return {'message': 'Username already exists'}, 400
     if query_email(email):
-        return json.dumps({'message': 'Email already exists'}), 400
+        return {'message': 'Email already exists'}, 400
 
     try:
         db_session.add(new_user)
@@ -37,14 +37,14 @@ def update_user(db_session:Session, user_id, username, password, name, email):
     '''
     doc
     '''
-    user = Users.query.get(user_id)
+    user = db_session.query(Users).get(user_id)
 
     if not user:
-        return json.dumps({'message': 'user not found', 'data': {}}), 404
-    if query_user(username):
-        return json.dumps({'message': 'Unable to update. Unavailable username'}), 400
-    if query_email(email):
-        return json.dumps({'message': 'Unable to update. Unabailable e-mail'}), 400
+        return {'message': 'user not found', 'data': {}}, 404
+    #if query_user(username):
+    #    return {'message': 'Unable to update. Unavailable username'}, 400
+    #if query_email(email):
+    #    return {'message': 'Unable to update. Unabailable e-mail'}, 400
 
     pass_hash = generate_password_hash(password)
 
@@ -56,11 +56,11 @@ def update_user(db_session:Session, user_id, username, password, name, email):
 
         db_session.commit()
 
-        result = user
+        result = {"username": user.username, "password": user.password, "name": user.name, "email": user.email}
         return {'message': 'User successfully updated', 'data': result}, 200
 
     except Exception:
-        return json.dumps({'message': 'Unable to update', 'data': {}}), 500
+        return {'message': 'Unable to update', 'data': {}}, 500
 
 def delete_user(user_id):
     '''
@@ -69,7 +69,7 @@ def delete_user(user_id):
     user = Users.query.get(user_id)
 
     if not user:
-        return json.dumps({'message': 'User not found', 'data': {}}), 404
+        return {'message': 'User not found', 'data': {}}, 404
 
     if user:
         try:
@@ -77,38 +77,38 @@ def delete_user(user_id):
             db.session.commit()
 
             result = user_schema.dump(user)
-            return json.dumps({'message': 'User successifully deleted', 'data': result}), 200
+            return {'message': 'User successifully deleted', 'data': result}, 200
 
         except Exception:
-            return json.dumps({'message': 'Unable to delete', 'data': {}}), 500
+            return {'message': 'Unable to delete', 'data': {}}, 500
 
-    return json.dumps({'message': 'Unable to delete', 'data': {}}), 500
+    return {'message': 'Unable to delete', 'data': {}}, 500
 
-def get_users():
+def get_users(db_session:Session):
     '''
        List information about all available users on database
     '''
-    users = Users.query.all()
+    users = db_session.query(Users).all()
     if users:
-        result = users_schema.dump(users)
-        return json.dumps({'message': 'Successfully feched', 'data': result}), 200
+        result = users
+        return {'message': 'Successfully feched', 'data': result}, 200
 
-    return json.dumps({'message': 'Unable to get data', 'data': {}}), 500
+    return {'message': 'Unable to get data', 'data': {}}, 500
 
-def get_user(user_id):
+def get_user(user_id, db_session:Session):
     '''
        List information about a specific user according to a given id
     '''
-    user = Users.query.get(user_id)
+    user = db_session.query(Users).get(user_id)
 
     if not user:
-        return json.dumps({'message': 'User not found', 'data': {}}), 404
+        return {'message': 'User not found', 'data': {}}, 404
 
     if user:
-        result = user_schema.dump(user)
-        return json.dumps({'message': 'Successfully feched', 'data': result}), 200
+        result = {"username": user.username, "password": user.password, "name": user.name, "email": user.email}
+        return {'message': 'Successfully feched', 'data': result}, 200
 
-    return json.dumps({'message': 'Unable to get data', 'data': {}}), 500
+    return {'message': 'Unable to get data', 'data': {}}, 500
 
 def query_user(username):
     '''
