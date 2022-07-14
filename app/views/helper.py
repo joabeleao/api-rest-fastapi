@@ -23,11 +23,12 @@ class JWTBearer(HTTPBearer):
 
     async def __call__(self, request: Request):
         credentials: HTTPAuthorizationCredentials = await super(JWTBearer, self).__call__(request)
+        print(request.__dict__)
         if credentials:
             if not credentials.scheme == "Bearer":
                 raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
-            if  self.verify_token(credentials.credentials):
-                raise HTTPException(status_code=403, detail="Invalid token or expired token.")
+            if not self.verify_token(credentials.credentials):
+                raise HTTPException(status_code=403, detail="Token invalid or expired.")
             return credentials.credentials
         raise HTTPException(status_code=403, detail="Invalid authorization code.")
 
@@ -37,17 +38,12 @@ class JWTBearer(HTTPBearer):
             wraps functions receiving all arguments to
             transform token_decorated function in a proper decorator.
         '''
-        print(credentials)
         try:
             token = credentials
             data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-            print("here goes data :"+data)
         except Exception:
-            return {'message': 'token is invalid or missing', 'data': {} }, 401
-    
-        print("here goes data :"+data)
-        return {"username": "not yet", "token": data}
-        #return {"username": current_user.username, "token": "ok"}
+            return None
+        return {"username": data['username']}
 
 def auth(username, password, db_session):
     '''
